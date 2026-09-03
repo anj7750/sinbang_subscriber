@@ -41,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="홈(대시보드)으로 이동"
           >
             <img 
-              src="/logo.png" 
+              src="logo.png" 
               alt="신문과방송" 
               className="h-8 w-auto shrink-0" 
             />
