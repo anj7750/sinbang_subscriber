@@ -7,22 +7,29 @@ import {
   Calendar,
   User,
   CheckCircle2,
-  ListTodo
+  ListTodo,
+  Lock
 } from 'lucide-react';
 import { TodoTask, PriorityLevel, TaskCategory } from '../types';
-import { updateTodo, deleteTodo, addTodo } from '../services/firebaseService';
+import { updateTodo, deleteTodo, addTodo, canUserEdit } from '../services/firebaseService';
+import { useAuth } from '../context/AuthContext';
 
 interface TodoListProps {
   todos: TodoTask[];
   onOpenNewTaskModal: () => void;
   onEditTask: (task: TodoTask) => void;
+  isReadOnly?: boolean;
 }
 
 export const TodoList: React.FC<TodoListProps> = ({
   todos,
   onOpenNewTaskModal,
-  onEditTask
+  onEditTask,
+  isReadOnly: propReadOnly
 }) => {
+  const { userProfile } = useAuth();
+  const isReadOnly = propReadOnly !== undefined ? propReadOnly : !canUserEdit(userProfile);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [filterStatus, setFilterStatus] = useState<'전체' | '진행중' | '완료'>('전체');
   const [quickTitle, setQuickTitle] = useState('');
@@ -141,13 +148,20 @@ export const TodoList: React.FC<TodoListProps> = ({
         </div>
 
         {/* Action button */}
-        <button
-          onClick={onOpenNewTaskModal}
-          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-sm transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          <span>새 할 일 등록</span>
-        </button>
+        {!isReadOnly ? (
+          <button
+            onClick={onOpenNewTaskModal}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>새 할 일 등록</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-xs rounded-lg font-bold">
+            <Lock className="w-3.5 h-3.5 text-indigo-500" />
+            <span>조회 전용</span>
+          </div>
+        )}
       </div>
 
       {/* Monthly Progress Bar */}
@@ -204,48 +218,50 @@ export const TodoList: React.FC<TodoListProps> = ({
       </div>
 
       {/* Quick Add Bar */}
-      <form
-        onSubmit={handleQuickAdd}
-        className="p-3 bg-indigo-50/50 border-b border-indigo-100 flex flex-col sm:flex-row items-center gap-2"
-      >
-        <input
-          type="text"
-          placeholder="빠른 할 일 추가... (예: 정기구독 우편 영수증 정산)"
-          value={quickTitle}
-          onChange={(e) => setQuickTitle(e.target.value)}
-          className="flex-1 w-full px-3 py-1.5 text-sm bg-white border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400"
-        />
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <select
-            value={quickCategory}
-            onChange={(e) => setQuickCategory(e.target.value as TaskCategory)}
-            className="px-2.5 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg text-slate-700 font-medium"
-          >
-            <option value="DM발송">DM발송</option>
-            <option value="반송처리">반송처리</option>
-            <option value="만료안내">만료안내</option>
-            <option value="입금확인">입금확인</option>
-            <option value="기타">기타</option>
-          </select>
-          <select
-            value={quickPriority}
-            onChange={(e) => setQuickPriority(e.target.value as PriorityLevel)}
-            className="px-2.5 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg text-slate-700 font-medium"
-          >
-            <option value="상">우선순위 상</option>
-            <option value="중">우선순위 중</option>
-            <option value="하">우선순위 하</option>
-          </select>
-          <button
-            type="submit"
-            disabled={isAddingQuick || !quickTitle.trim()}
-            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-colors whitespace-nowrap flex items-center gap-1 shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>추가</span>
-          </button>
-        </div>
-      </form>
+      {!isReadOnly && (
+        <form
+          onSubmit={handleQuickAdd}
+          className="p-3 bg-indigo-50/50 border-b border-indigo-100 flex flex-col sm:flex-row items-center gap-2"
+        >
+          <input
+            type="text"
+            placeholder="빠른 할 일 추가... (예: 정기구독 우편 영수증 정산)"
+            value={quickTitle}
+            onChange={(e) => setQuickTitle(e.target.value)}
+            className="flex-1 w-full px-3 py-1.5 text-sm bg-white border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400"
+          />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select
+              value={quickCategory}
+              onChange={(e) => setQuickCategory(e.target.value as TaskCategory)}
+              className="px-2.5 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg text-slate-700 font-medium"
+            >
+              <option value="DM발송">DM발송</option>
+              <option value="반송처리">반송처리</option>
+              <option value="만료안내">만료안내</option>
+              <option value="입금확인">입금확인</option>
+              <option value="기타">기타</option>
+            </select>
+            <select
+              value={quickPriority}
+              onChange={(e) => setQuickPriority(e.target.value as PriorityLevel)}
+              className="px-2.5 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg text-slate-700 font-medium"
+            >
+              <option value="상">우선순위 상</option>
+              <option value="중">우선순위 중</option>
+              <option value="하">우선순위 하</option>
+            </select>
+            <button
+              type="submit"
+              disabled={isAddingQuick || !quickTitle.trim()}
+              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-colors whitespace-nowrap flex items-center gap-1 shadow-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>추가</span>
+            </button>
+          </div>
+        </form>
+      )}
 
       {/* Task List items */}
       <div className="divide-y divide-slate-100 max-h-[460px] overflow-y-auto">
@@ -270,9 +286,14 @@ export const TodoList: React.FC<TodoListProps> = ({
               {/* Checkbox and Info */}
               <div className="flex items-start gap-3.5 flex-1 min-w-0">
                 <button
-                  onClick={() => handleToggleComplete(todo)}
-                  className="mt-0.5 text-slate-400 hover:text-blue-600 transition-colors shrink-0"
-                  title={todo.completed ? '미완료로 변경' : '완료로 변경'}
+                  onClick={!isReadOnly ? () => handleToggleComplete(todo) : undefined}
+                  disabled={isReadOnly}
+                  className={`mt-0.5 shrink-0 ${
+                    isReadOnly
+                      ? 'cursor-default'
+                      : 'text-slate-400 hover:text-blue-600 transition-colors cursor-pointer'
+                  }`}
+                  title={isReadOnly ? '조회 전용' : todo.completed ? '미완료로 변경' : '완료로 변경'}
                 >
                   {todo.completed ? (
                     <CheckSquare className="w-5 h-5 text-emerald-600 fill-emerald-100" />
@@ -308,11 +329,13 @@ export const TodoList: React.FC<TodoListProps> = ({
                   </div>
 
                   <p
-                    onClick={() => handleToggleComplete(todo)}
-                    className={`text-sm font-medium cursor-pointer leading-snug ${
+                    onClick={!isReadOnly ? () => handleToggleComplete(todo) : undefined}
+                    className={`text-sm font-medium leading-snug ${
+                      isReadOnly ? 'cursor-default' : 'cursor-pointer hover:text-blue-600'
+                    } ${
                       todo.completed
                         ? 'line-through text-slate-400'
-                        : 'text-slate-800 hover:text-blue-600'
+                        : 'text-slate-800'
                     }`}
                   >
                     {todo.title}
@@ -321,22 +344,24 @@ export const TodoList: React.FC<TodoListProps> = ({
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => onEditTask(todo)}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors text-xs"
-                  title="수정"
-                >
-                  수정
-                </button>
-                <button
-                  onClick={() => setTodoToDelete(todo)}
-                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
-                  title="삭제"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+              {!isReadOnly && (
+                <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => onEditTask(todo)}
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-md transition-colors text-xs cursor-pointer"
+                    title="수정"
+                  >
+                    수정
+                  </button>
+                  <button
+                    onClick={() => setTodoToDelete(todo)}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                    title="삭제"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           ))
         )}

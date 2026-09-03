@@ -5,7 +5,8 @@ import {
   addAllowedEmail,
   deleteAllowedEmail,
   subscribeToUsers,
-  updateUserAdminRole
+  updateUserAdminRole,
+  isUserAdmin
 } from '../services/firebaseService';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -40,6 +41,8 @@ export const AdminManagement: React.FC = () => {
 
   // Subscribe to allowed_emails and users collections
   useEffect(() => {
+    if (!isUserAdmin(userProfile)) return;
+
     const unsubEmails = subscribeToAllowedEmails((data) => setAllowedEmails(data));
     const unsubUsers = subscribeToUsers((data) => setUsers(data));
 
@@ -47,7 +50,19 @@ export const AdminManagement: React.FC = () => {
       unsubEmails();
       unsubUsers();
     };
-  }, []);
+  }, [userProfile]);
+
+  if (!isUserAdmin(userProfile)) {
+    return (
+      <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 my-4 max-w-lg mx-auto shadow-sm">
+        <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-slate-900 mb-1">접근 권한이 제한되었습니다</h3>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          관리자 페이지는 인가된 관리자 권한을 가진 계정으로 로그인 시에만 접근할 수 있습니다.
+        </p>
+      </div>
+    );
+  }
 
   const handleAddEmail = async (e: React.FormEvent) => {
     e.preventDefault();

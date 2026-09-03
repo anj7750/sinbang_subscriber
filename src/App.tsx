@@ -8,7 +8,7 @@ import { PaymentList } from './components/PaymentList';
 import { LabelPrintView } from './components/LabelPrintView';
 import { AnalyticsCharts } from './components/AnalyticsCharts';
 import { AdminManagement } from './components/AdminManagement';
-import { AuthModal } from './components/AuthModal';
+import { LoginScreen } from './components/LoginScreen';
 import { TaskModal } from './components/TaskModal';
 import { SubscriberModal } from './components/SubscriberModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -17,7 +17,8 @@ import {
   subscribeToSubscribers,
   subscribeToReturns,
   subscribeToPayments,
-  seedInitialData
+  seedInitialData,
+  isUserAdmin
 } from './services/firebaseService';
 import { TodoTask, Subscriber, ReturnLog, PaymentRecord, DashboardStats } from './types';
 import { Newspaper, Loader2 } from 'lucide-react';
@@ -42,6 +43,13 @@ function MainLayout() {
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false);
   const [subToEdit, setSubToEdit] = useState<Subscriber | null>(null);
+
+  // If user is not admin (only jam and shlee), safely keep off admin tab
+  useEffect(() => {
+    if (activeTab === 'admin' && !isUserAdmin(userProfile)) {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, userProfile]);
 
   // Initialize Firebase Listeners
   useEffect(() => {
@@ -117,6 +125,11 @@ function MainLayout() {
       setInitialFilter(filter);
     }
   }, []);
+
+  // If not logged in, render the login screen directly as the main/first view
+  if (!userProfile) {
+    return <LoginScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-blue-600 selection:text-white">
@@ -198,8 +211,8 @@ function MainLayout() {
           </div>
         )}
 
-        {/* TAB 5: ADMIN MANAGEMENT (Admin Only) */}
-        {activeTab === 'admin' && userProfile?.isAdmin && (
+        {/* TAB 5: ADMIN MANAGEMENT (jam and shlee only) */}
+        {activeTab === 'admin' && isUserAdmin(userProfile) && (
           <div className="animate-in fade-in duration-150">
             <AdminManagement />
           </div>

@@ -33,7 +33,8 @@ import {
   Grid,
   ChevronRight,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Lock
 } from 'lucide-react';
 import {
   isRegisteredOrOverseas,
@@ -47,10 +48,12 @@ import {
   parseSheetRows,
   getValidAndVisibleSheetNames
 } from '../utils/excelMultiSheetParser';
-import { batchAddSubscribers } from '../services/firebaseService';
+import { batchAddSubscribers, canUserEdit } from '../services/firebaseService';
+import { useAuth } from '../context/AuthContext';
 
 interface ExcelSpreadsheetViewProps {
   subscribers: Subscriber[];
+  isReadOnly?: boolean;
   onAddSubscriber?: (sub: Omit<Subscriber, 'id'>) => Promise<void>;
   onUpdateSubscriber?: (id: string, sub: Partial<Subscriber>) => Promise<void>;
   onDeleteSubscriber?: (id: string) => Promise<void>;
@@ -138,11 +141,15 @@ const EXCEL_COLUMNS = [
 
 export const ExcelSpreadsheetView: React.FC<ExcelSpreadsheetViewProps> = ({
   subscribers,
+  isReadOnly,
   onAddSubscriber,
   onUpdateSubscriber,
   onDeleteSubscriber,
   onRefreshData,
 }) => {
+  const { userProfile } = useAuth();
+  const effectiveReadOnly = isReadOnly !== undefined ? isReadOnly : !canUserEdit(userProfile);
+
   // 1. Workbook Sheets State
   const [activeSheetTab, setActiveSheetTab] = useState<string>('DM리스트');
   const [customSheetTabs, setCustomSheetTabs] = useState<string[]>(['DM리스트', '구독만료', '구독중단(누적)', '전체']);
@@ -343,12 +350,21 @@ export const ExcelSpreadsheetView: React.FC<ExcelSpreadsheetViewProps> = ({
 
   // Handle Double-Click Inline Edit
   const handleStartEdit = (rowIdx: number, colIdx: number, initialVal: string) => {
+    if (effectiveReadOnly) {
+      showToast('조회 전용 계정(test)은 데이터를 수정할 수 없습니다.');
+      return;
+    }
     setEditingCell({ rowIdx, colIdx });
     setEditInputVal(initialVal);
   };
 
   // Commit Cell Change from Inline Editor or Formula Bar
   const handleCommitCellChange = async (newVal: string) => {
+    if (effectiveReadOnly) {
+      showToast('조회 전용 계정(test)은 데이터를 수정할 수 없습니다.');
+      setEditingCell(null);
+      return;
+    }
     if (!selectedCell) return;
     const { rowIdx, colKey, subscriberId } = selectedCell;
 
@@ -386,6 +402,10 @@ export const ExcelSpreadsheetView: React.FC<ExcelSpreadsheetViewProps> = ({
 
   // Add New Row to Grid
   const handleAddNewRow = async () => {
+    if (effectiveReadOnly) {
+      showToast('조회 전용 계정(test)은 데이터를 추가할 수 없습니다.');
+      return;
+    }
     if (onAddSubscriber) {
       const newSub: Omit<Subscriber, 'id'> = {
         category: '정기구독',
@@ -442,6 +462,10 @@ export const ExcelSpreadsheetView: React.FC<ExcelSpreadsheetViewProps> = ({
 
   // Delete Selected Row
   const handleDeleteSelectedRow = async () => {
+    if (effectiveReadOnly) {
+      showToast('조회 전용 계정(test)은 데이터를 삭제할 수 없습니다.');
+      return;
+    }
     if (!selectedCell) {
       showToast('삭제할 행의 셀을 먼저 선택해 주세요.');
       return;
@@ -723,7 +747,7 @@ export const ExcelSpreadsheetView: React.FC<ExcelSpreadsheetViewProps> = ({
             <span>엑셀 다운로드 (.xlsx)</span>
           </button>
 
-          {uploadedWorkbook && (
+          {uploadedWorkbook && !effectiveReadOnly && (
             <button
               onClick={() => {
                 setSyncSuccessResult(null);
@@ -925,23 +949,32 @@ export const ExcelSpreadsheetView: React.FC<ExcelSpreadsheetViewProps> = ({
           <div className="h-5 w-px bg-slate-300 mx-0.5" />
 
           {/* Row/Column Actions: Add Row, Delete Row */}
-          <button
-            onClick={handleAddNewRow}
-            className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-xs cursor-pointer transition-colors"
-            title="새 행을 추가합니다"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>행 추가</span>
-          </button>
+          {!effectiveReadOnly ? (
+            <>
+              <button
+                onClick={handleAddNewRow}
+                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-xs cursor-pointer transition-colors"
+                title="새 행을 추가합니다"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>행 추가</span>
+              </button>
 
-          <button
-            onClick={handleDeleteSelectedRow}
-            className="flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold rounded cursor-pointer transition-colors"
-            title="선택된 행을 삭제합니다"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>선택 행 삭제</span>
-          </button>
+              <button
+                onClick={handleDeleteSelectedRow}
+                className="flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold rounded cursor-pointer transition-colors"
+                title="선택된 행을 삭제합니다"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>선택 행 삭제</span>
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded font-bold text-xs">
+              <Lock className="w-3 h-3 text-amber-600" />
+              <span>조회 전용 (행 추가·삭제 제한)</span>
+            </div>
+          )}
         </div>
 
         {/* Right Search Input & Trigger */}
@@ -979,14 +1012,19 @@ export const ExcelSpreadsheetView: React.FC<ExcelSpreadsheetViewProps> = ({
         <input
           type="text"
           value={formulaValue}
+          readOnly={effectiveReadOnly}
           onChange={(e) => setFormulaValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               handleCommitCellChange(formulaValue);
             }
           }}
-          placeholder="수식 또는 셀 값을 입력한 후 Enter를 누르세요"
-          className="flex-1 px-2.5 py-1 bg-white border border-slate-200 rounded text-xs font-sans text-slate-900 focus:outline-none focus:border-[#107C41]"
+          placeholder={effectiveReadOnly ? "조회 전용 모드 (셀 값 수정 불가)" : "수식 또는 셀 값을 입력한 후 Enter를 누르세요"}
+          className={`flex-1 px-2.5 py-1 border rounded text-xs font-sans focus:outline-none ${
+            effectiveReadOnly
+              ? 'bg-slate-50 border-slate-200 text-slate-500 cursor-not-allowed'
+              : 'bg-white border-slate-200 text-slate-900 focus:border-[#107C41]'
+          }`}
         />
       </div>
 

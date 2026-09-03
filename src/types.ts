@@ -101,6 +101,7 @@ export interface UserProfile {
   email: string;
   displayName?: string;
   isAdmin: boolean;
+  isReadOnly?: boolean;
   createdAt: string;
 }
 

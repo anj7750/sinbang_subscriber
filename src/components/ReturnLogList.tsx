@@ -11,17 +11,23 @@ import {
   Building,
   Plus,
   Trash2,
-  X
+  X,
+  Lock
 } from 'lucide-react';
 import { ReturnLog, ReturnStatus, ReturnReason } from '../types';
-import { updateReturnLog, updateSubscriber, addReturnLog, deleteReturnLog } from '../services/firebaseService';
+import { updateReturnLog, updateSubscriber, addReturnLog, deleteReturnLog, canUserEdit } from '../services/firebaseService';
+import { useAuth } from '../context/AuthContext';
 
 interface ReturnLogListProps {
   returns: ReturnLog[];
   onRefreshData?: () => void;
+  isReadOnly?: boolean;
 }
 
-export const ReturnLogList: React.FC<ReturnLogListProps> = ({ returns }) => {
+export const ReturnLogList: React.FC<ReturnLogListProps> = ({ returns, isReadOnly: propReadOnly }) => {
+  const { userProfile } = useAuth();
+  const isReadOnly = propReadOnly !== undefined ? propReadOnly : !canUserEdit(userProfile);
+
   const [editingReturnId, setEditingReturnId] = useState<string | null>(null);
   const [newAddrInput, setNewAddrInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('대기중');
@@ -176,14 +182,21 @@ export const ReturnLogList: React.FC<ReturnLogListProps> = ({ returns }) => {
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Add Return Button */}
-          <button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>반송 내역 추가</span>
-          </button>
+          {!isReadOnly ? (
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>반송 내역 추가</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-rose-200 text-rose-700 text-xs rounded-lg font-bold">
+              <Lock className="w-3.5 h-3.5 text-rose-500" />
+              <span>조회 전용</span>
+            </div>
+          )}
 
           {/* Filter Pills */}
           <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 text-xs">
@@ -215,13 +228,15 @@ export const ReturnLogList: React.FC<ReturnLogListProps> = ({ returns }) => {
             <p className="text-xs text-slate-400 mb-4">
               우체국에서 반송된 DM이 발생하면 [+ 반송 내역 추가] 버튼으로 직접 등록하거나 관리할 수 있습니다.
             </p>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-bold border border-rose-200 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>첫 반송 내역 등록하기</span>
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-bold border border-rose-200 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>첫 반송 내역 등록하기</span>
+              </button>
+            )}
           </div>
         ) : (
           filteredReturns.map((ret) => (
@@ -274,58 +289,86 @@ export const ReturnLogList: React.FC<ReturnLogListProps> = ({ returns }) => {
 
                 {/* Return Status & Actions */}
                 <div className="flex items-center gap-2 shrink-0">
-                  {ret.status === '대기중' && editingReturnId !== ret.id && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setEditingReturnId(ret.id || null);
-                          setNewAddrInput(ret.address);
-                        }}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>주소 수정 및 재발송</span>
-                      </button>
-                      <button
-                        onClick={() => setReturnToCancel(ret)}
-                        className="px-3 py-1.5 bg-slate-200 hover:bg-rose-100 hover:text-rose-700 text-slate-700 text-xs font-medium rounded-lg transition-colors cursor-pointer"
-                      >
-                        발송중단
-                      </button>
+                  {isReadOnly ? (
+                    <div className="flex items-center gap-1.5">
+                      {ret.status === '대기중' && (
+                        <span className="px-2.5 py-1 bg-amber-50 text-amber-800 text-xs font-bold rounded-lg border border-amber-200">
+                          대기중
+                        </span>
+                      )}
+                      {ret.status === '주소수정완료' && (
+                        <span className="px-2.5 py-1 bg-blue-50 text-blue-800 text-xs font-bold rounded-lg border border-blue-200">
+                          주소수정완료
+                        </span>
+                      )}
+                      {ret.status === '재발송완료' && (
+                        <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-300 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          재발송 완료 ({ret.processedAt})
+                        </span>
+                      )}
+                      {ret.status === '구독해지' && (
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-300">
+                          발송 중단됨
+                        </span>
+                      )}
                     </div>
-                  )}
+                  ) : (
+                    <>
+                      {ret.status === '대기중' && editingReturnId !== ret.id && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingReturnId(ret.id || null);
+                              setNewAddrInput(ret.address);
+                            }}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>주소 수정 및 재발송</span>
+                          </button>
+                          <button
+                            onClick={() => setReturnToCancel(ret)}
+                            className="px-3 py-1.5 bg-slate-200 hover:bg-rose-100 hover:text-rose-700 text-slate-700 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                          >
+                            발송중단
+                          </button>
+                        </div>
+                      )}
 
-                  {ret.status === '주소수정완료' && (
-                    <button
-                      onClick={() => handleMarkResent(ret.id)}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>재발송 처리 완료</span>
-                    </button>
-                  )}
+                      {ret.status === '주소수정완료' && (
+                        <button
+                          onClick={() => handleMarkResent(ret.id)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>재발송 처리 완료</span>
+                        </button>
+                      )}
 
-                  {ret.status === '재발송완료' && (
-                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-300 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      재발송 완료 ({ret.processedAt})
-                    </span>
-                  )}
+                      {ret.status === '재발송완료' && (
+                        <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-300 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          재발송 완료 ({ret.processedAt})
+                        </span>
+                      )}
 
-                  {ret.status === '구독해지' && (
-                    <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-300">
-                      발송 중단됨
-                    </span>
-                  )}
+                      {ret.status === '구독해지' && (
+                        <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg border border-slate-300">
+                          발송 중단됨
+                        </span>
+                      )}
 
-                  {/* Delete Button */}
-                  <button
-                    onClick={() => setReturnToDelete(ret)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                    title="반송 내역 삭제"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => setReturnToDelete(ret)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="반송 내역 삭제"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 

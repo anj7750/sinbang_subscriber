@@ -33,10 +33,13 @@ import {
   GraduationCap,
   Gift,
   PackageCheck,
-  Trash
+  Trash,
+  Lock,
+  Eye
 } from 'lucide-react';
 import { Subscriber, SubscriberStatus } from '../types';
-import { addSubscriber, deleteSubscriber, updateSubscriber, purgeExpiredAndStoppedSubscribers } from '../services/firebaseService';
+import { addSubscriber, deleteSubscriber, updateSubscriber, purgeExpiredAndStoppedSubscribers, canUserEdit } from '../services/firebaseService';
+import { useAuth } from '../context/AuthContext';
 import { CsvUploadModal } from './CsvUploadModal';
 import { DistributionSummaryHeader } from './DistributionSummaryHeader';
 import { ClearSubscribersModal, ClearScope } from './ClearSubscribersModal';
@@ -71,6 +74,7 @@ interface SubscriberListProps {
   onEditSubscriber: (sub: Subscriber) => void;
   initialFilter?: string;
   initialCategoryTab?: string;
+  isReadOnly?: boolean;
 }
 
 export const SubscriberList: React.FC<SubscriberListProps> = ({
@@ -80,8 +84,12 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
   onOpenAddModal,
   onEditSubscriber,
   initialFilter,
-  initialCategoryTab = '정기구독'
+  initialCategoryTab = '정기구독',
+  isReadOnly
 }) => {
+  const { userProfile } = useAuth();
+  const effectiveReadOnly = isReadOnly !== undefined ? isReadOnly : !canUserEdit(userProfile);
+
   // Category Group Tab:
   // '정기구독' | '기관/단체' | '도서관' | '대학/연구소' | '관계기관' | '기증' | '전체'
   const [selectedCategoryTab, setSelectedCategoryTab] = useState<string>(initialCategoryTab);
@@ -459,19 +467,21 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
                 </button>
               </div>
 
-              {/* 전체 데이터 삭제 버튼 */}
-              <button
-                type="button"
-                onClick={() => {
-                  setClearInitialScope('전체');
-                  setIsClearModalOpen(true);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-all cursor-pointer"
-                title="데이터베이스 전체 삭제 또는 특정 분류 일괄 삭제"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>전체 데이터 삭제</span>
-              </button>
+              {/* 전체 데이터 삭제 버튼 (수정 권한 전용) */}
+              {!effectiveReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClearInitialScope('전체');
+                    setIsClearModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition-all cursor-pointer"
+                  title="데이터베이스 전체 삭제 또는 특정 분류 일괄 삭제"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>전체 데이터 삭제</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -668,16 +678,18 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
 
           {/* Right: Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {/* + 독자 추가 Button */}
-            <button
-              onClick={onOpenAddModal}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>독자 추가</span>
-            </button>
+            {/* + 독자 추가 Button (수정 권한 전용) */}
+            {!effectiveReadOnly && (
+              <button
+                onClick={onOpenAddModal}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>독자 추가</span>
+              </button>
+            )}
 
-            {/* 엑셀 내보내기 Button (.xlsx) */}
+            {/* 엑셀 내보내기 Button (.xlsx) - 모든 계정(test 포함) 열람 및 다운로드 허용 */}
             <div className="inline-flex items-center rounded-lg shadow-2xs border border-blue-600 bg-white">
               <button
                 onClick={() => handleExportExcel('xlsx')}
@@ -696,25 +708,37 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
               </button>
             </div>
 
-            {/* 엑셀 일괄 업로드 */}
-            <button
-              onClick={() => setIsCsvModalOpen(true)}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer shadow-2xs"
-              title="엑셀/CSV 일괄 업로드"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>엑셀 일괄 업로드</span>
-            </button>
+            {/* 엑셀 일괄 업로드 (수정 권한 전용) */}
+            {!effectiveReadOnly && (
+              <button
+                onClick={() => setIsCsvModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer shadow-2xs"
+                title="엑셀/CSV 일괄 업로드"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>엑셀 일괄 업로드</span>
+              </button>
+            )}
 
-            {/* 월별 만료관리 모달 */}
-            <button
-              onClick={() => setIsExpiryModalOpen(true)}
-              className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold rounded-lg transition-all cursor-pointer"
-              title="월별 만료자 일괄 관리"
-            >
-              <CalendarCheck className="w-3.5 h-3.5 text-amber-700" />
-              <span>만료관리</span>
-            </button>
+            {/* 월별 만료관리 모달 (수정 권한 전용) */}
+            {!effectiveReadOnly && (
+              <button
+                onClick={() => setIsExpiryModalOpen(true)}
+                className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold rounded-lg transition-all cursor-pointer"
+                title="월별 만료자 일괄 관리"
+              >
+                <CalendarCheck className="w-3.5 h-3.5 text-amber-700" />
+                <span>만료관리</span>
+              </button>
+            )}
+
+            {/* 조회 전용 안내 태그 */}
+            {effectiveReadOnly && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 border border-slate-200 text-slate-600 text-xs rounded-lg font-bold">
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>조회 전용 (추가·수정·삭제 제한)</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -723,11 +747,12 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
           <div className="p-4 sm:p-6">
             <ExcelSpreadsheetView
               subscribers={subscribers}
-              onAddSubscriber={async (sub) => {
+              isReadOnly={effectiveReadOnly}
+              onAddSubscriber={effectiveReadOnly ? undefined : async (sub) => {
                 await addSubscriber(sub);
               }}
-              onUpdateSubscriber={updateSubscriber}
-              onDeleteSubscriber={deleteSubscriber}
+              onUpdateSubscriber={effectiveReadOnly ? undefined : updateSubscriber}
+              onDeleteSubscriber={effectiveReadOnly ? undefined : deleteSubscriber}
             />
           </div>
         ) : viewMode === 'cards' ? (
@@ -804,29 +829,38 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-1.5">
-                    {normCat === '정기구독' && (
-                      <button
-                        onClick={() => setSubToPay(sub)}
-                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
-                        title="입금/결제 관리"
-                      >
-                        <DollarSign className="w-3.5 h-3.5" />
-                      </button>
+                    {effectiveReadOnly ? (
+                      <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-slate-400" />
+                        <span>조회</span>
+                      </span>
+                    ) : (
+                      <>
+                        {normCat === '정기구독' && (
+                          <button
+                            onClick={() => setSubToPay(sub)}
+                            className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+                            title="입금/결제 관리"
+                          >
+                            <DollarSign className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onEditSubscriber(sub)}
+                          className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          title="수정"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setSubToDelete(sub)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
                     )}
-                    <button
-                      onClick={() => onEditSubscriber(sub)}
-                      className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      title="수정"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setSubToDelete(sub)}
-                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
-                      title="삭제"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
               );
@@ -995,31 +1029,38 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
 
                         {/* 10. 관리/수정 액션 (오른쪽 고정으로 가로 스크롤 없이 언제든 즉시 조작 가능) */}
                         <td className="py-3 px-2 text-center whitespace-nowrap sticky right-0 bg-white group-hover:bg-blue-50/90 z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-100 transition-colors">
-                          <div className="flex items-center justify-center gap-1">
-                            {normCat === '정기구독' && (
+                          {effectiveReadOnly ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              <span>조회</span>
+                            </span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              {normCat === '정기구독' && (
+                                <button
+                                  onClick={() => setSubToPay(sub)}
+                                  className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                  title="입금 확인 등록"
+                                >
+                                  <DollarSign className="w-4 h-4" />
+                                </button>
+                              )}
                               <button
-                                onClick={() => setSubToPay(sub)}
-                                className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                                title="입금 확인 등록"
+                                onClick={() => onEditSubscriber(sub)}
+                                className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100/70 rounded-lg transition-colors cursor-pointer font-bold"
+                                title="독자 정보 수정"
                               >
-                                <DollarSign className="w-4 h-4" />
+                                <Edit3 className="w-4 h-4" />
                               </button>
-                            )}
-                            <button
-                              onClick={() => onEditSubscriber(sub)}
-                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100/70 rounded-lg transition-colors cursor-pointer font-bold"
-                              title="독자 정보 수정"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setSubToDelete(sub)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="삭제"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                              <button
+                                onClick={() => setSubToDelete(sub)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="삭제"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );

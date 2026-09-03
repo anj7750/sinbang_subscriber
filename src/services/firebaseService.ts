@@ -26,10 +26,11 @@ const usersCol = collection(db, 'users');
 
 // Initial allowed emails
 export const INITIAL_ALLOWED_EMAILS = [
-  'anj7750@gmail.com',
-  'ryunne@kpf.or.kr',
   'jam@kpf.or.kr',
   'shlee@kpf.or.kr',
+  'test@kpf.or.kr',
+  'anj7750@gmail.com',
+  'ryunne@kpf.or.kr',
   'isna@kpf.or.kr',
   'joo26@kpf.or.kr',
   'patsae@kpf.or.kr',
@@ -37,12 +38,64 @@ export const INITIAL_ALLOWED_EMAILS = [
   'jhpark@kpf.or.kr'
 ];
 
+// Admin permissions are strictly restricted to jam and shlee as requested
 export const INITIAL_ADMIN_EMAILS = [
-  'anj7750@gmail.com',
-  'ryunne@kpf.or.kr',
   'jam@kpf.or.kr',
   'shlee@kpf.or.kr'
 ];
+
+export function isUserAdmin(profile: UserProfile | null | undefined): boolean {
+  if (!profile) return false;
+  const email = (profile.email || '').toLowerCase().trim();
+  const idOrEmail = email.split('@')[0];
+  const uid = (profile.uid || '').toLowerCase().trim();
+  return (
+    idOrEmail === 'jam' ||
+    idOrEmail === 'shlee' ||
+    uid === 'admin_jam' ||
+    uid === 'admin_shlee' ||
+    uid === 'jam' ||
+    uid === 'shlee' ||
+    email === 'jam@kpf.or.kr' ||
+    email === 'shlee@kpf.or.kr'
+  );
+}
+
+// Check if a user has write/edit permissions (test account is read-only)
+export function canUserEdit(profile: UserProfile | null | undefined): boolean {
+  if (!profile) return false;
+  if (profile.isReadOnly) return false;
+  const email = (profile.email || '').toLowerCase().trim();
+  const idOrEmail = email.split('@')[0];
+  const uid = (profile.uid || '').toLowerCase().trim();
+  if (
+    idOrEmail === 'test' ||
+    uid === 'user_test' ||
+    uid === 'test' ||
+    email === 'test@kpf.or.kr'
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function isCurrentSessionReadOnly(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const raw = localStorage.getItem('kpf_current_user');
+    if (!raw) return false;
+    const profile: UserProfile = JSON.parse(raw);
+    return !canUserEdit(profile);
+  } catch {
+    return false;
+  }
+}
+
+export function assertWritable() {
+  if (isCurrentSessionReadOnly()) {
+    throw new Error('조회 전용 계정(test)은 데이터 추가, 수정, 삭제 권한이 제한되어 있습니다.');
+  }
+}
 
 // Ensure initial allowed emails exist in Firestore
 export async function ensureAllowedEmailsSeeded() {
@@ -225,21 +278,25 @@ export function subscribeToPayments(callback: (payments: PaymentRecord[]) => voi
 
 // Todo CRUD
 export async function addTodo(task: Omit<TodoTask, 'id'>) {
+  assertWritable();
   return await addDoc(todosCol, task);
 }
 
 export async function updateTodo(id: string, updates: Partial<TodoTask>) {
+  assertWritable();
   const todoRef = doc(db, 'todos', id);
   return await updateDoc(todoRef, updates);
 }
 
 export async function deleteTodo(id: string) {
+  assertWritable();
   const todoRef = doc(db, 'todos', id);
   return await deleteDoc(todoRef);
 }
 
 // Subscriber CRUD
 export async function addSubscriber(sub: Omit<Subscriber, 'id'>) {
+  assertWritable();
   return await addDoc(subscribersCol, sub);
 }
 
@@ -257,6 +314,7 @@ export async function batchAddSubscribers(
   subList: Omit<Subscriber, 'id'>[],
   onProgress?: (done: number, total: number) => void
 ) {
+  assertWritable();
   if (subList.length === 0) return;
   const CHUNK_SIZE = 400; // Firestore batch write limit is 500
   let done = 0;
@@ -277,41 +335,49 @@ export async function batchAddSubscribers(
 }
 
 export async function updateSubscriber(id: string, updates: Partial<Subscriber>) {
+  assertWritable();
   const subRef = doc(db, 'subscribers', id);
   return await updateDoc(subRef, updates);
 }
 
 export async function deleteSubscriber(id: string) {
+  assertWritable();
   const subRef = doc(db, 'subscribers', id);
   return await deleteDoc(subRef);
 }
 
 // Return CRUD
 export async function addReturnLog(ret: Omit<ReturnLog, 'id'>) {
+  assertWritable();
   return await addDoc(returnsCol, ret);
 }
 
 export async function updateReturnLog(id: string, updates: Partial<ReturnLog>) {
+  assertWritable();
   const retRef = doc(db, 'returns', id);
   return await updateDoc(retRef, updates);
 }
 
 export async function deleteReturnLog(id: string) {
+  assertWritable();
   const retRef = doc(db, 'returns', id);
   return await deleteDoc(retRef);
 }
 
 // Payment CRUD
 export async function addPayment(pay: Omit<PaymentRecord, 'id'>) {
+  assertWritable();
   return await addDoc(paymentsCol, pay);
 }
 
 export async function updatePayment(id: string, updates: Partial<PaymentRecord>) {
+  assertWritable();
   const payRef = doc(db, 'payments', id);
   return await updateDoc(payRef, updates);
 }
 
 export async function deletePayment(id: string) {
+  assertWritable();
   const payRef = doc(db, 'payments', id);
   return await deleteDoc(payRef);
 }
@@ -658,6 +724,7 @@ export async function seedInitialData(force = false) {
 export async function purgeExpiredAndStoppedSubscribers(
   onProgress?: (done: number, total: number) => void
 ): Promise<number> {
+  assertWritable();
   try {
     const snapshot = await getDocs(subscribersCol);
     const targetDocs = snapshot.docs.filter((d) => {
@@ -712,6 +779,7 @@ export async function clearSubscribersByStatus(
   statuses: string[],
   onProgress?: (done: number, total: number) => void
 ): Promise<number> {
+  assertWritable();
   try {
     const snapshot = await getDocs(subscribersCol);
     const targetDocs = snapshot.docs.filter((d) => {
@@ -750,6 +818,7 @@ export async function clearSubscribersByStatus(
 export async function clearAllSubscribers(
   onProgress?: (done: number, total: number) => void
 ): Promise<boolean> {
+  assertWritable();
   try {
     let totalDeleted = 0;
     while (true) {

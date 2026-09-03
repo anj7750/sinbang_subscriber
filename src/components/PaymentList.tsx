@@ -7,16 +7,22 @@ import {
   Trash2,
   X,
   Pencil,
-  Check
+  Check,
+  Lock
 } from 'lucide-react';
 import { PaymentRecord } from '../types';
-import { updatePayment, updateSubscriber, addPayment, deletePayment } from '../services/firebaseService';
+import { updatePayment, updateSubscriber, addPayment, deletePayment, canUserEdit } from '../services/firebaseService';
+import { useAuth } from '../context/AuthContext';
 
 interface PaymentListProps {
   payments: PaymentRecord[];
+  isReadOnly?: boolean;
 }
 
-export const PaymentList: React.FC<PaymentListProps> = ({ payments }) => {
+export const PaymentList: React.FC<PaymentListProps> = ({ payments, isReadOnly: propReadOnly }) => {
+  const { userProfile } = useAuth();
+  const isReadOnly = propReadOnly !== undefined ? propReadOnly : !canUserEdit(userProfile);
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<PaymentRecord | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<PaymentRecord | null>(null);
@@ -155,14 +161,21 @@ export const PaymentList: React.FC<PaymentListProps> = ({ payments }) => {
         </div>
 
         <div>
-          <button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>입금 내역 등록</span>
-          </button>
+          {!isReadOnly ? (
+            <button
+              type="button"
+              onClick={() => setIsAddModalOpen(true)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>입금 내역 등록</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1 px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-xs rounded-xl font-bold">
+              <Lock className="w-3.5 h-3.5 text-indigo-500" />
+              <span>조회 전용</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -197,20 +210,24 @@ export const PaymentList: React.FC<PaymentListProps> = ({ payments }) => {
                       <span className="text-base font-extrabold text-indigo-700 font-mono mr-1">
                         {pay.amount.toLocaleString()}원
                       </span>
-                      <button
-                        onClick={() => handleOpenEdit(pay)}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                        title="입금 내역 수정"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setPaymentToDelete(pay)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="입금 내역 삭제"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {!isReadOnly && (
+                        <>
+                          <button
+                            onClick={() => handleOpenEdit(pay)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            title="입금 내역 수정"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setPaymentToDelete(pay)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="입금 내역 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -226,13 +243,20 @@ export const PaymentList: React.FC<PaymentListProps> = ({ payments }) => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleConfirmPayment(pay)}
-                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>입금 확인 완료 처리</span>
-                </button>
+                {!isReadOnly ? (
+                  <button
+                    onClick={() => handleConfirmPayment(pay)}
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>입금 확인 완료 처리</span>
+                  </button>
+                ) : (
+                  <div className="w-full py-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    <span>입금 확인 대기중 (조회 전용)</span>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -272,20 +296,24 @@ export const PaymentList: React.FC<PaymentListProps> = ({ payments }) => {
                   <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[11px]">
                     확인완료
                   </span>
-                  <button
-                    onClick={() => handleOpenEdit(pay)}
-                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                    title="입금 내역 수정"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setPaymentToDelete(pay)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                    title="기록 삭제"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {!isReadOnly && (
+                    <>
+                      <button
+                        onClick={() => handleOpenEdit(pay)}
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                        title="입금 내역 수정"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setPaymentToDelete(pay)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="기록 삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
