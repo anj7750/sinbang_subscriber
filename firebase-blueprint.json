@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "subscribers": {
+      "title": "Subscribers",
+      "description": "Subscriber list for 신문과방송 magazine DM management",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "zipCode": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string" },
+        "expiryDate": { "type": "string" },
+        "paymentStatus": { "type": "string" },
+        "dmDeliveryStatus": { "type": "string" },
+        "returnReason": { "type": "string" },
+        "subscriptionType": { "type": "string" },
+        "copies": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "status"]
+    },
+    "todos": {
+      "title": "This Month Tasks",
+      "description": "To-do tasks for this month DM management",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "priority": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "assignedTo": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["title", "completed"]
+    },
+    "returns": {
+      "title": "DM Return Logs",
+      "description": "DM Return tracking logs",
+      "type": "object",
+      "properties": {
+        "subscriberId": { "type": "string" },
+        "subscriberName": { "type": "string" },
+        "address": { "type": "string" },
+        "reason": { "type": "string" },
+        "returnedAt": { "type": "string" },
+        "status": { "type": "string" },
+        "processedAt": { "type": "string" }
+      },
+      "required": ["subscriberName", "reason", "status"]
+    },
+    "payments": {
+      "title": "Unconfirmed Payments",
+      "description": "Unconfirmed deposit records",
+      "type": "object",
+      "properties": {
+        "depositorName": { "type": "string" },
+        "amount": { "type": "number" },
+        "bank": { "type": "string" },
+        "depositDate": { "type": "string" },
+        "memo": { "type": "string" },
+        "status": { "type": "string" },
+        "matchedSubscriberId": { "type": "string" }
+      },
+      "required": ["depositorName", "amount", "status"]
+    }
+  }
+}

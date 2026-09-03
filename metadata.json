@@ -1,0 +1,6 @@
+{
+  "name": "독자 관리 포털",
+  "description": "한국언론진흥재단 <신문과방송> 잡지 독자 및 우체국 DM 발송 관리 포털",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
