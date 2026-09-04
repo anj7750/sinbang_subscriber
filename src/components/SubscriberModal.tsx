@@ -120,32 +120,32 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
       const cleanName = name.trim();
 
       const payload: Omit<Subscriber, 'id'> = {
-        category,
-        shippingInfo: shippingInfo.trim() || undefined,
-        copies,
-        codeNumber: codeNumber.trim() || undefined,
+        category: category || '기관/단체',
+        shippingInfo: shippingInfo.trim(),
+        copies: Number(copies) || 1,
+        codeNumber: codeNumber.trim(),
         company: cleanCompany,
         organization: cleanCompany,
-        department: department.trim() || undefined,
+        department: department.trim(),
         name: cleanName || cleanCompany,
-        position: position.trim() || undefined,
-        recipientInfo: recipientInfo.trim() || undefined,
+        position: position.trim(),
+        recipientInfo: recipientInfo.trim(),
         zipCode: zipCode.trim(),
         address: address.trim(),
-        deliveryCode: deliveryCode.trim() || undefined,
-        deliveryCodeSubmission: deliveryCodeSubmission.trim() || undefined,
-        phone: phone.trim() || undefined,
-        mobile: mobile.trim() || undefined,
-        email: email.trim() || undefined,
+        deliveryCode: deliveryCode.trim(),
+        deliveryCodeSubmission: deliveryCodeSubmission.trim(),
+        phone: phone.trim(),
+        mobile: mobile.trim(),
+        email: email.trim(),
         startDate: startDate || todayStr,
         expiryDate: expiryDate || '',
-        accumulatedPeriod: accumulatedPeriod.trim() || undefined,
-        paymentHistory: paymentHistory.trim() || undefined,
+        accumulatedPeriod: accumulatedPeriod.trim(),
+        paymentHistory: paymentHistory.trim(),
         status,
-        etc: etc.trim() || undefined,
-        addedBy: addedBy.trim() || undefined,
-        memo: memo.trim() || undefined,
-        notes: memo.trim() || undefined,
+        etc: etc.trim(),
+        addedBy: addedBy.trim() || '관리자',
+        memo: memo.trim(),
+        notes: memo.trim(),
         createdAt: subscriberToEdit?.createdAt || todayStr
       };
 
@@ -155,9 +155,10 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
         await addSubscriber(payload);
       }
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save subscriber:', err);
-      alert('구독자 정보 저장에 실패했습니다.');
+      const msg = err?.message || '알 수 없는 오류가 발생했습니다.';
+      alert(`구독자 정보 저장에 실패했습니다.\n사유: ${msg}`);
     } finally {
       setIsSubmitting(false);
     }

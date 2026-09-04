@@ -143,12 +143,8 @@ function MainLayout() {
         paymentCount={stats.unconfirmedPayments}
       />
 
-      {/* Main Container: Wide width for tables so no horizontal scroll is needed */}
-      <main className={`flex-1 w-full mx-auto px-3 sm:px-6 py-5 ${
-        activeTab === 'subscribers' || activeTab === 'paid' || activeTab === 'all_subs'
-          ? 'max-w-[1680px]'
-          : 'max-w-7xl'
-      }`}>
+      {/* Main Container: Unified width across all tabs (대시보드, 구독관리, 반송, 결제, 관리자) */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-5">
         
         {/* TAB 1: DASHBOARD (인사이트) */}
         {activeTab === 'dashboard' && (

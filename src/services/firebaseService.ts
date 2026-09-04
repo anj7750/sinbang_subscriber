@@ -276,16 +276,28 @@ export function subscribeToPayments(callback: (payments: PaymentRecord[]) => voi
   });
 }
 
+export function removeUndefinedFields<T extends Record<string, any>>(obj: T): T {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result as T;
+}
+
 // Todo CRUD
 export async function addTodo(task: Omit<TodoTask, 'id'>) {
   assertWritable();
-  return await addDoc(todosCol, task);
+  const cleanTask = removeUndefinedFields(task);
+  return await addDoc(todosCol, cleanTask);
 }
 
 export async function updateTodo(id: string, updates: Partial<TodoTask>) {
   assertWritable();
+  const cleanUpdates = removeUndefinedFields(updates);
   const todoRef = doc(db, 'todos', id);
-  return await updateDoc(todoRef, updates);
+  return await updateDoc(todoRef, cleanUpdates);
 }
 
 export async function deleteTodo(id: string) {
@@ -297,17 +309,8 @@ export async function deleteTodo(id: string) {
 // Subscriber CRUD
 export async function addSubscriber(sub: Omit<Subscriber, 'id'>) {
   assertWritable();
-  return await addDoc(subscribersCol, sub);
-}
-
-function removeUndefinedFields(obj: Record<string, any>): Record<string, any> {
-  const result: Record<string, any> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (value !== undefined) {
-      result[key] = value;
-    }
-  }
-  return result;
+  const cleanSub = removeUndefinedFields(sub);
+  return await addDoc(subscribersCol, cleanSub);
 }
 
 export async function batchAddSubscribers(
@@ -336,8 +339,9 @@ export async function batchAddSubscribers(
 
 export async function updateSubscriber(id: string, updates: Partial<Subscriber>) {
   assertWritable();
+  const cleanUpdates = removeUndefinedFields(updates);
   const subRef = doc(db, 'subscribers', id);
-  return await updateDoc(subRef, updates);
+  return await updateDoc(subRef, cleanUpdates);
 }
 
 export async function deleteSubscriber(id: string) {
@@ -349,13 +353,15 @@ export async function deleteSubscriber(id: string) {
 // Return CRUD
 export async function addReturnLog(ret: Omit<ReturnLog, 'id'>) {
   assertWritable();
-  return await addDoc(returnsCol, ret);
+  const cleanRet = removeUndefinedFields(ret);
+  return await addDoc(returnsCol, cleanRet);
 }
 
 export async function updateReturnLog(id: string, updates: Partial<ReturnLog>) {
   assertWritable();
+  const cleanUpdates = removeUndefinedFields(updates);
   const retRef = doc(db, 'returns', id);
-  return await updateDoc(retRef, updates);
+  return await updateDoc(retRef, cleanUpdates);
 }
 
 export async function deleteReturnLog(id: string) {
@@ -367,13 +373,15 @@ export async function deleteReturnLog(id: string) {
 // Payment CRUD
 export async function addPayment(pay: Omit<PaymentRecord, 'id'>) {
   assertWritable();
-  return await addDoc(paymentsCol, pay);
+  const cleanPay = removeUndefinedFields(pay);
+  return await addDoc(paymentsCol, cleanPay);
 }
 
 export async function updatePayment(id: string, updates: Partial<PaymentRecord>) {
   assertWritable();
+  const cleanUpdates = removeUndefinedFields(updates);
   const payRef = doc(db, 'payments', id);
-  return await updateDoc(payRef, updates);
+  return await updateDoc(payRef, cleanUpdates);
 }
 
 export async function deletePayment(id: string) {
