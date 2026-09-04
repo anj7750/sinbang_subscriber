@@ -38,11 +38,9 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
           
-          {/* Left: Fixed Logo (outside scrollable nav) */}
+          {/* Left: Fixed Logo & Title (Non-clickable branding) */}
           <div 
-            onClick={() => setActiveTab('dashboard')}
-            className="flex items-center gap-2.5 cursor-pointer select-none shrink-0 group hover:opacity-85 transition-opacity"
-            title="홈(대시보드)으로 이동"
+            className="flex items-center gap-2.5 select-none shrink-0 cursor-default"
           >
             <img 
               src="logo.png" 
@@ -50,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="h-8 w-auto shrink-0" 
             />
             <span className="h-4 w-px bg-slate-300 shrink-0"></span>
-            <span className="text-sm font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors tracking-tight whitespace-nowrap shrink-0">
+            <span className="text-sm font-extrabold text-slate-900 tracking-tight whitespace-nowrap shrink-0">
               독자 관리 포털
             </span>
           </div>
