@@ -247,6 +247,17 @@ function MainLayout() {
           setSubToEdit(null);
         }}
         subscriberToEdit={subToEdit}
+        onSuccess={(savedSub) => {
+          setActiveTab('subscribers');
+          setSearchTerm('');
+          const cat = savedSub.category || '정기구독';
+          if (['정기구독', '기관/단체', '도서관', '대학/연구소', '관계기관', '기증'].includes(cat)) {
+            setInitialCategoryTab(cat);
+          } else {
+            setInitialCategoryTab('전체');
+          }
+          setInitialFilter('all');
+        }}
       />
     </div>
   );

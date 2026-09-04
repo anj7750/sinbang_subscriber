@@ -23,7 +23,7 @@ export interface Subscriber {
   persons?: number | string;  // 인원
   copies: number;             // 부수
   codeNumber?: string;        // 코드번호
-  company: string;            // 회사명 (필수)
+  company?: string;           // 회사명 (선택)
   department?: string;        // 부서
   name: string;               // 성명
   position?: string;          // 직책

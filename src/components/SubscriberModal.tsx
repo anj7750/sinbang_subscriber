@@ -7,15 +7,17 @@ interface SubscriberModalProps {
   isOpen: boolean;
   onClose: () => void;
   subscriberToEdit?: Subscriber | null;
+  onSuccess?: (savedSub: Subscriber) => void;
 }
 
 export const SubscriberModal: React.FC<SubscriberModalProps> = ({
   isOpen,
   onClose,
-  subscriberToEdit
+  subscriberToEdit,
+  onSuccess
 }) => {
   // 23 Fields State
-  const [category, setCategory] = useState('기관/단체');
+  const [category, setCategory] = useState('정기구독');
   const [shippingInfo, setShippingInfo] = useState('');
   const [copies, setCopies] = useState(1);
   const [codeNumber, setCodeNumber] = useState('');
@@ -44,7 +46,7 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
 
   useEffect(() => {
     if (subscriberToEdit) {
-      setCategory(subscriberToEdit.category || subscriberToEdit.subscriptionType || '기관/단체');
+      setCategory(subscriberToEdit.category || subscriberToEdit.subscriptionType || '정기구독');
       setShippingInfo(subscriberToEdit.shippingInfo || '');
       setCopies(subscriberToEdit.copies || 1);
       setCodeNumber(subscriberToEdit.codeNumber || '');
@@ -72,7 +74,7 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
       const todayStr = new Date().toISOString().split('T')[0];
       const nextYearStr = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
 
-      setCategory('기관/단체');
+      setCategory('정기구독');
       setShippingInfo('우체국DM');
       setCopies(1);
       setCodeNumber('');
@@ -103,8 +105,12 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!company.trim() && !name.trim()) {
-      alert('회사명(기관명) 또는 성명(독자명) 중 하나는 반드시 입력해야 합니다.');
+    if (!name.trim()) {
+      alert('성명(이름)은 필수 입력 항목입니다.');
+      return;
+    }
+    if (!mobile.trim() && !phone.trim()) {
+      alert('전화번호(휴대전화 또는 전화번호)는 필수 입력 항목입니다.');
       return;
     }
     if (!address.trim()) {
@@ -114,20 +120,21 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const nowIso = new Date().toISOString();
+      const todayStr = nowIso.split('T')[0];
 
       const cleanCompany = company.trim();
       const cleanName = name.trim();
 
       const payload: Omit<Subscriber, 'id'> = {
-        category: category || '기관/단체',
+        category: category || '정기구독',
         shippingInfo: shippingInfo.trim(),
         copies: Number(copies) || 1,
         codeNumber: codeNumber.trim(),
         company: cleanCompany,
         organization: cleanCompany,
         department: department.trim(),
-        name: cleanName || cleanCompany,
+        name: cleanName,
         position: position.trim(),
         recipientInfo: recipientInfo.trim(),
         zipCode: zipCode.trim(),
@@ -146,13 +153,21 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
         addedBy: addedBy.trim() || '관리자',
         memo: memo.trim(),
         notes: memo.trim(),
-        createdAt: subscriberToEdit?.createdAt || todayStr
+        createdAt: subscriberToEdit?.createdAt || nowIso
       };
 
       if (subscriberToEdit && subscriberToEdit.id) {
         await updateSubscriber(subscriberToEdit.id, payload);
+        if (onSuccess) {
+          onSuccess({ id: subscriberToEdit.id, ...payload });
+        }
+        alert('구독자 정보가 성공적으로 수정되었습니다.');
       } else {
-        await addSubscriber(payload);
+        const docRef = await addSubscriber(payload);
+        if (onSuccess) {
+          onSuccess({ id: docRef.id, ...payload });
+        }
+        alert(`신규 독자 '${cleanName}' 님이 데이터베이스에 성공적으로 등록되었습니다.`);
       }
       onClose();
     } catch (err: any) {
@@ -204,28 +219,28 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  회사명(기관명) <span className="text-rose-500">*필수</span>
+                  성명 / 독자명 <span className="text-rose-500">*필수</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="예: 한국언론진흥재단"
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                  placeholder="예: 홍길동"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
                 />
               </div>
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  성명 / 담당자
+                  회사명(기관명) <span className="text-slate-400 font-normal">(선택)</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="예: 홍길동"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="예: 한국언론진흥재단 (선택)"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
                 />
               </div>
 
@@ -234,13 +249,15 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold"
                 >
-                  <option value="기관/단체">기관/단체</option>
-                  <option value="개인">개인</option>
-                  <option value="도서관">도서관</option>
-                  <option value="증정">증정</option>
-                  <option value="언론사">언론사</option>
+                  <option value="정기구독">⭐ 정기구독 (유료독자)</option>
+                  <option value="기관/단체">🏛️ 기관/단체 (언론사/기업)</option>
+                  <option value="도서관">📚 도서관</option>
+                  <option value="대학/연구소">🎓 대학/연구소</option>
+                  <option value="관계기관">🤝 관계기관/문화원</option>
+                  <option value="기증">🎁 기증/증정</option>
+                  <option value="개인">개인독자</option>
                 </select>
               </div>
             </div>
@@ -393,13 +410,15 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">휴대전화</label>
+                <label className="block font-bold text-slate-700 mb-1">
+                  휴대전화 <span className="text-rose-500">*필수</span>
+                </label>
                 <input
                   type="text"
                   placeholder="010-0000-0000"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
                 />
               </div>
 
@@ -521,11 +540,11 @@ export const SubscriberModal: React.FC<SubscriberModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !company.trim() || !address.trim()}
-              className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+              disabled={isSubmitting || !name.trim() || (!mobile.trim() && !phone.trim()) || !address.trim()}
+              className="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
             >
               <Check className="w-4 h-4" />
-              <span>{subscriberToEdit ? '수정사항 저장' : '구독자 정보 저장'}</span>
+              <span>{isSubmitting ? '저장 중...' : (subscriberToEdit ? '수정사항 저장' : '구독자 정보 저장')}</span>
             </button>
           </div>
         </form>

@@ -236,12 +236,24 @@ export function subscribeToTodos(callback: (todos: TodoTask[]) => void) {
 
 // Real-time listener for Subscribers
 export function subscribeToSubscribers(callback: (subscribers: Subscriber[]) => void) {
-  const q = query(subscribersCol, orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(subscribersCol, (snapshot) => {
     const subscribers: Subscriber[] = snapshot.docs.map((docSnap) => ({
       id: docSnap.id,
       ...docSnap.data()
     } as Subscriber));
+
+    // Sort client-side so items with latest createdAt appear at the top
+    subscribers.sort((a, b) => {
+      const timeA = a.createdAt || '';
+      const timeB = b.createdAt || '';
+      if (timeA && timeB) {
+        return timeB.localeCompare(timeA);
+      }
+      if (timeA) return -1;
+      if (timeB) return 1;
+      return 0;
+    });
+
     callback(subscribers);
   }, (error) => {
     console.error("Error subscribing to subscribers:", error);

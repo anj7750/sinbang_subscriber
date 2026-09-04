@@ -100,6 +100,9 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
   // View mode: 'table' (테이블 뷰) | 'cards' (카드 뷰) | 'excel' (스프레드시트 뷰)
   const [viewMode, setViewMode] = useState<'table' | 'cards' | 'excel'>('table');
 
+  // Sort By: 'latest' (최신 등록순) | 'expiry' (만료 임박순) | 'name' (독자명순)
+  const [sortBy, setSortBy] = useState<'latest' | 'expiry' | 'name'>('latest');
+
   // Modals & Actions
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -134,6 +137,13 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
       setSelectedCategoryTab(initialFilter);
     }
   }, [initialFilter]);
+
+  // Sync initialCategoryTab prop
+  useEffect(() => {
+    if (initialCategoryTab) {
+      setSelectedCategoryTab(initialCategoryTab);
+    }
+  }, [initialCategoryTab]);
 
   // Dynamic Category & Dispatch Counts
   const dmStats = useMemo(() => {
@@ -232,27 +242,48 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
         return true;
       })
       .sort((a, b) => {
-        // If viewing 정기구독, sort by D-Day / Expiry
-        if (selectedCategoryTab === '정기구독') {
+        if (sortBy === 'latest') {
+          const timeA = a.createdAt || '';
+          const timeB = b.createdAt || '';
+          if (timeA && timeB) return timeB.localeCompare(timeA);
+          if (timeA) return -1;
+          if (timeB) return 1;
+          return 0;
+        }
+
+        if (sortBy === 'expiry') {
           const dDayA = calculateSubscriberDDay(a.expiryDate);
           const dDayB = calculateSubscriberDDay(b.expiryDate);
           if (dDayA.days >= 0 && dDayB.days >= 0) return dDayA.days - dDayB.days;
           if (dDayA.days >= 0 && dDayB.days < 0) return -1;
           if (dDayA.days < 0 && dDayB.days >= 0) return 1;
+          return 0;
         }
-        // Otherwise default order
+
+        if (sortBy === 'name') {
+          const nameA = a.name || a.company || '';
+          const nameB = b.name || b.company || '';
+          return nameA.localeCompare(nameB, 'ko');
+        }
+
+        // Default fallback: newest first
+        const timeA = a.createdAt || '';
+        const timeB = b.createdAt || '';
+        if (timeA && timeB) return timeB.localeCompare(timeA);
+        if (timeA) return -1;
+        if (timeB) return 1;
         return 0;
       });
-  }, [subscribers, selectedCategoryTab, dispatchFilter, searchTerm]);
+  }, [subscribers, selectedCategoryTab, dispatchFilter, searchTerm, sortBy]);
 
   // Pagination for high performance
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(50);
 
-  // Auto reset page on filter/search change
+  // Auto reset page on filter/search/sort change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategoryTab, dispatchFilter, searchTerm]);
+  }, [selectedCategoryTab, dispatchFilter, searchTerm, sortBy]);
 
   const totalPages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(filteredSubscribers.length / pageSize));
   
@@ -664,16 +695,32 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
 
         {/* 2. Filter & Action Control Bar */}
         <div className="p-4 sm:px-6 bg-slate-50/70 border-b border-slate-200 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3.5">
-          {/* Left: Search Input */}
-          <div className="relative flex-1 min-w-[240px] max-w-lg">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="이름, 회사/기관명, 부서, 주소, 이메일, 휴대전화 검색"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
-            />
+          {/* Left: Search Input & Sort Selector */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 max-w-xl">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="이름, 회사/기관명, 부서, 주소, 이메일, 휴대전화 검색"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 shadow-2xs">
+              <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="text-xs font-bold text-slate-700 bg-transparent focus:outline-none cursor-pointer pr-1"
+                title="목록 정렬 기준 선택"
+              >
+                <option value="latest">⚡ 최신 등록순</option>
+                <option value="expiry">⏳ 만료 임박순 (D-Day)</option>
+                <option value="name">🔤 성명 가나다순</option>
+              </select>
+            </div>
           </div>
 
           {/* Right: Action Buttons */}
@@ -788,6 +835,11 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
                           </span>
                         )}
                         <span className="font-bold text-slate-900 text-sm">{sub.name || sub.company || '무명'}</span>
+                        {sub.createdAt && (Date.now() - new Date(sub.createdAt).getTime() < 24 * 60 * 60 * 1000) && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            신규
+                          </span>
+                        )}
                       </div>
                       <span className="text-[11px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold border border-blue-100">
                         {normCat}
@@ -953,6 +1005,11 @@ export const SubscriberList: React.FC<SubscriberListProps> = ({
                             <span className="font-extrabold text-slate-900 text-sm sm:text-base">
                               {sub.name || sub.company || '이름없음'}
                             </span>
+                            {sub.createdAt && (Date.now() - new Date(sub.createdAt).getTime() < 24 * 60 * 60 * 1000) && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+                                신규
+                              </span>
+                            )}
                             {isRegisteredOrOverseas(sub.shippingInfo || sub.address) && (
                               <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shrink-0">
                                 등기

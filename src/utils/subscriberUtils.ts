@@ -793,8 +793,10 @@ export function normalizeDmCategory(sub: Partial<Subscriber>): string {
   if (
     cat === '정기구독' ||
     cat === '유료' ||
+    cat === '개인' ||
     cat.includes('정기구독') ||
-    cat.includes('자료회원')
+    cat.includes('자료회원') ||
+    cat.includes('개인')
   ) {
     if (!comp.includes('도서관') && !comp.includes('문화원') && !comp.includes('재단')) {
       return '정기구독';
